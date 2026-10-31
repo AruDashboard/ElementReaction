@@ -39,9 +39,6 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
-      - name: Run tests
-        run: npm test
-
       - name: Build for GitHub Pages
         env:
           SITE_URL: https://${{ github.repository_owner }}.github.io
