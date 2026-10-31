@@ -40,6 +40,29 @@ const base = import.meta.env.BASE_URL;
         </svg>
       </div>
     </main>
+    <footer class="footer">
+      <div class="toggles">
+        <button
+          id="btnMoon"
+          class="toggle"
+          type="button"
+          aria-pressed="false"
+          title="显示月反应（月感电、月结晶）"
+        >
+          月反应
+        </button>
+        <button
+          id="btnStar"
+          class="toggle"
+          type="button"
+          aria-pressed="false"
+          title="显示星反应（星超导、星扩散）"
+        >
+          星反应
+        </button>
+      </div>
+      <div id="status" role="status" aria-live="polite"></div>
+    </footer>
     <script>
       import '../scripts/graph.js';
     </script>

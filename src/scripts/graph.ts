@@ -1,4 +1,10 @@
-import { createLayout, type LayoutConfig, type LayoutEdge, type Point } from '../lib/layout';
+import {
+  createLayout,
+  type LayoutConfig,
+  type LayoutEdge,
+  type LayoutNode,
+  type Point,
+} from '../lib/layout';
 import { graphConfig } from '../data/graph';
 import fontUrl from '../assets/fonts/genshin-subset.woff2?url';
 
@@ -7,12 +13,14 @@ interface GraphNode {
   label?: string;
   image?: string;
   color?: string;
+  split?: { label?: string; color?: string; image?: string }[];
 }
 interface GraphEdge {
   from: string;
   to: string;
   label?: string;
   color?: string;
+  group?: 'moon' | 'star';
 }
 interface GraphConfig {
   nodes: GraphNode[];
@@ -40,7 +48,7 @@ const byId = <T extends HTMLElement | SVGElement = HTMLElement>(id: string): T =
   if (!el) throw new Error(`Missing element #${id}`);
   return el as T;
 };
-const errorMessage = (e: unknown): string => (e instanceof Error ? errorMessage(e) : String(e));
+const errorMessage = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 const NS = 'http://www.w3.org/2000/svg';
 function mk<K extends keyof SVGElementTagNameMap>(
   tag: K,
@@ -86,7 +94,6 @@ function mk<K extends keyof SVGElementTagNameMap>(
     { edgeColor: '#6e7f96', labelColor: '#c9d1d9', highlightColor: '#58a6ff' },
     cfg.style,
   );
-  document.title = 'title';
   document.documentElement.style.setProperty('--accent', STY.highlightColor);
 
   const S = LAY.nodeSize;
@@ -116,22 +123,75 @@ function mk<K extends keyof SVGElementTagNameMap>(
     e.Le = Math.max(S * 2 + 20, S + e.lw + 70);
   });
 
-  const groups = new Map<string, RenderEdge[]>();
-  E.forEach((e) => {
-    const k = Math.min(e.s, e.t) + '|' + Math.max(e.s, e.t);
-    if (!groups.has(k)) groups.set(k, []);
-    groups.get(k)!.push(e);
-  });
-  groups.forEach((g) =>
-    g.forEach((e, i) => {
-      e.off = e.s === e.t ? 0 : (i - (g.length - 1) / 2) * S * 1.1;
-    }),
-  );
+  const activeGroups = new Set<'moon' | 'star'>();
+  const isActive = (e: RenderEdge): boolean => !e.group || activeGroups.has(e.group);
+  const applyEdgeVisibility = (): void => {
+    E.forEach((e) => (e.el.style.display = isActive(e) ? '' : 'none'));
+  };
+  function layoutEdgeOffsets(): void {
+    const groups = new Map<string, RenderEdge[]>();
+    E.forEach((e) => {
+      if (!isActive(e)) return;
+      const k = Math.min(e.s, e.t) + '|' + Math.max(e.s, e.t);
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k)!.push(e);
+    });
+    groups.forEach((g) =>
+      g.forEach((e, i) => {
+        e.off = e.s === e.t ? 0 : (i - (g.length - 1) / 2) * S * 1.1;
+      }),
+    );
+  }
+  layoutEdgeOffsets();
   const stageSize = () => ({ W: svg.clientWidth || 1200, H: svg.clientHeight || 700 });
-  const bestLayout = createLayout(N, E, LAY, stageSize);
+  const bestLayout = createLayout(N as unknown as LayoutNode[], E, LAY, stageSize);
 
   const clip = mk('clipPath', { id: 'clipSq' }, defs);
   mk('rect', { x: -S / 2, y: -S / 2, width: S, height: S, rx: 10 }, clip);
+  const halfH = S / 2;
+  const triPoints = [
+    `${-halfH},${-halfH} ${halfH},${-halfH} ${-halfH},${halfH}`,
+    `${halfH},${-halfH} ${halfH},${halfH} ${-halfH},${halfH}`,
+  ];
+  ['triTL', 'triBR'].forEach((id, k) => {
+    mk('polygon', { points: triPoints[k] }, mk('clipPath', { id }, defs));
+  });
+
+  const drawSplit = (g: SVGGElement, parts: { color?: string; image?: string }[]): void => {
+    const clips = ['url(#triTL)', 'url(#triBR)'];
+    parts.slice(0, 2).forEach((part, k) => {
+      const fill = () =>
+        mk(
+          'polygon',
+          { points: triPoints[k], fill: part.color || '#2d3748', 'clip-path': clips[k] },
+          g,
+        );
+      if (part.image) {
+        const im = mk(
+          'image',
+          {
+            href: part.image,
+            x: -halfH,
+            y: -halfH,
+            width: S,
+            height: S,
+            'clip-path': clips[k],
+            preserveAspectRatio: 'xMidYMid slice',
+          },
+          g,
+        );
+        im.addEventListener('error', () => {
+          im.remove();
+          fill();
+        });
+      } else fill();
+    });
+    mk(
+      'line',
+      { x1: halfH, y1: -halfH, x2: -halfH, y2: halfH, stroke: '#0b0f14', 'stroke-width': 1.5 },
+      g,
+    );
+  };
 
   N.forEach((n) => {
     const g = mk(
@@ -155,7 +215,9 @@ function mk<K extends keyof SVGElementTagNameMap>(
       );
       mk('text', { class: 'fallback', y: 9 }, g).textContent = (n.label || n.id).slice(0, 1);
     };
-    if (n.image) {
+    if (n.split?.length === 2) {
+      drawSplit(g, n.split);
+    } else if (n.image) {
       const im = mk(
         'image',
         {
@@ -196,17 +258,19 @@ function mk<K extends keyof SVGElementTagNameMap>(
     e.text = mk('text', { fill: STY.labelColor }, g);
     e.text.textContent = e.label;
   });
+  applyEdgeVisibility();
 
   function highlight(i: number): void {
     N.forEach((n) => {
       const on =
         i < 0 ||
         n.i === i ||
-        E.some((e) => (e.s === i && e.t === n.i) || (e.t === i && e.s === n.i));
+        E.some((e) => isActive(e) && ((e.s === i && e.t === n.i) || (e.t === i && e.s === n.i)));
       n.el.classList.toggle('dim', !on);
       n.el.classList.toggle('hl', i >= 0 && n.i === i);
     });
     E.forEach((e) => {
+      if (!isActive(e)) return;
       const on = i < 0 || e.s === i || e.t === i;
       e.el.classList.toggle('dim', !on);
       e.path.style.stroke = i >= 0 && on ? STY.highlightColor : e.color;
@@ -223,6 +287,7 @@ function mk<K extends keyof SVGElementTagNameMap>(
 
   function drawEdges() {
     for (const e of E) {
+      if (!isActive(e)) continue;
       const a = N[e.s],
         b = N[e.t];
       let d: string,
@@ -461,7 +526,7 @@ function mk<K extends keyof SVGElementTagNameMap>(
     copy.removeAttribute('transform');
     root.appendChild(copy);
     copy.querySelectorAll('.dim,.hl').forEach((el) => el.classList.remove('dim', 'hl'));
-    copy.querySelectorAll('.edge path').forEach((p, i) => {
+    copy.querySelectorAll<SVGPathElement>('.edge path').forEach((p, i) => {
       p.style.stroke = '';
       p.setAttribute('stroke', E[i].color);
     });
@@ -541,6 +606,22 @@ function mk<K extends keyof SVGElementTagNameMap>(
     });
   bindExport('btnPng', 'image/png');
   bindExport('btnJpg', 'image/jpeg');
+
+  const bindToggle = (id: string, group: 'moon' | 'star') => {
+    const btn = byId<HTMLButtonElement>(id);
+    btn.onclick = () => {
+      const on = btn.getAttribute('aria-pressed') !== 'true';
+      if (on) activeGroups.add(group);
+      else activeGroups.delete(group);
+      btn.setAttribute('aria-pressed', String(on));
+      btn.classList.toggle('on', on);
+      applyEdgeVisibility();
+      layoutEdgeOffsets();
+      draw();
+    };
+  };
+  bindToggle('btnMoon', 'moon');
+  bindToggle('btnStar', 'star');
 
   byId<HTMLButtonElement>('btnRelayout').onclick = () => setTimeout(relayout, 0);
   byId<HTMLButtonElement>('btnFit').onclick = () => {
