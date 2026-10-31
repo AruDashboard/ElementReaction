@@ -1,0 +1,202 @@
+@import 'tailwindcss';
+@font-face {
+  font-family: 'Genshin';
+  src: url('../assets/fonts/genshin-subset.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+:root {
+  --bg: #0d1117;
+  --panel: #161b22;
+  --line: #30363d;
+  --fg: #e6edf3;
+  --muted: #8b949e;
+  --accent: #58a6ff;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  overflow: hidden;
+  font-family: 'Genshin', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+body {
+  display: flex;
+  flex-direction: column;
+}
+.banner {
+  flex: none;
+  height: 68px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 28px;
+  background: linear-gradient(180deg, #161b22, #0d1117);
+  border-bottom: 1px solid var(--line);
+}
+.banner img {
+  height: 36px;
+  width: 36px;
+  border-radius: 8px;
+}
+.banner h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+.banner p {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.banner .spacer {
+  flex: 1;
+}
+.banner button {
+  background: var(--panel);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.banner button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+main {
+  flex: 1;
+  min-height: 0;
+  padding: 22px 28px 28px;
+}
+#stage {
+  width: 100%;
+  height: 100%;
+  border: 1px solid #21262d;
+  border-radius: 14px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 1px 1px, #1c2330 1px, transparent 0) 0 0/24px 24px,
+    #0b0f14;
+}
+svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: grab;
+  user-select: none;
+}
+svg.panning {
+  cursor: grabbing;
+}
+.node {
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.node .frame {
+  fill: #161b22;
+  stroke: #3d4655;
+  stroke-width: 1.5;
+  transition: stroke 0.2s;
+}
+.node text {
+  fill: var(--fg);
+  font-size: 13px;
+  text-anchor: middle;
+  pointer-events: none;
+}
+.node .fallback {
+  font-size: 26px;
+  font-weight: 600;
+}
+.edge {
+  transition: opacity 0.2s;
+}
+.edge path {
+  fill: none;
+  stroke-width: 1.8;
+  transition: stroke 0.2s;
+}
+.edge text {
+  font-size: 12px;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: #0b0f14;
+  stroke-width: 5px;
+  stroke-linejoin: round;
+}
+.dim {
+  opacity: 0.14;
+}
+.node.hl .frame {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+
+button {
+  font: inherit;
+}
+button:focus-visible,
+.node:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+svg {
+  touch-action: none;
+}
+#status {
+  color: var(--muted);
+  font-size: 12px;
+}
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 28px 16px;
+  font-size: 12px;
+  color: var(--muted);
+}
+@media (max-width: 720px) {
+  .banner {
+    height: auto;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 16px;
+  }
+  .banner > div:first-of-type {
+    flex: 1;
+    min-width: 200px;
+  }
+  .banner .spacer {
+    display: none;
+  }
+  .banner button {
+    flex: 1;
+    padding: 8px;
+    white-space: nowrap;
+  }
+  .banner h1 {
+    font-size: 18px;
+  }
+  main {
+    padding: 12px 12px 16px;
+  }
+  .footer {
+    padding: 0 16px 12px;
+  }
+}
